@@ -4,6 +4,11 @@ import HighchartsMore from 'highcharts/highcharts-more';
 
 HighchartsMore(Highcharts);
 
+interface seriesData {
+  y: number;
+  color: Highcharts.GradientColorObject;
+}
+
 @Component({
   selector: 'app-gauge',
   templateUrl: './gauge.component.html',
@@ -22,10 +27,10 @@ export class GaugeComponent implements OnInit {
     ['0<sub>2</sub> value', 42],
   ];
   public gradient = {
-    x1: 0, //right to left [red, color] red -> color
-    y1: 0, //bottom to top [red, color] red -> color
-    x2: 1, //left to right [red, color] red -> color
-    y2: 0, //top to bottom [red, color] red -> color
+    x1: 1.7,
+    y1: 0,
+    x2: 0,
+    y2: 1,
   };
 
   public createCategories(data: [string, number][] | null): string[] {
@@ -38,8 +43,8 @@ export class GaugeComponent implements OnInit {
             this.colors[index] ? this.colors[index] : ''
           }">&#9658;</span>`
       ),
-      '', // additional row for empty space inside the circle, requires 0 as data value
-      '', // additional row for empty space inside the circle, requires 0 as data value
+      '',
+      '',
     ];
   }
 
@@ -49,50 +54,107 @@ export class GaugeComponent implements OnInit {
         ({
           linearGradient: this.gradient,
           stops: [
-            [0, '#a15'],
+            [0, '#000'],
             [1, color],
           ],
         } as Highcharts.GradientColorObject)
     );
   }
 
-  public createData(arr: [string, number][] | null) {
-    if (!arr) return [];
+  public createData(arr: [string, number][] | null): seriesData[] {
+    const placeholder: seriesData[] = [
+      {
+        y: 0,
+        color: {
+          linearGradient: this.gradient,
+          stops: [
+            [0, '#000'],
+            [1, 'red'],
+          ],
+        },
+      },
+      {
+        y: 0,
+        color: {
+          linearGradient: this.gradient,
+          stops: [
+            [0, '#000'],
+            [1, 'plum'],
+          ],
+        },
+      },
+    ];
 
-    return arr.map(([name, percent], index) => {
-      // dataArr signature [0, 0,..., row value(percent), 0,0 <- "two last values" for empty rows]
-      const dataArr = new Array(arr.length + 2).fill(0);
-      dataArr[index] = percent;
+    if (!arr) return placeholder;
 
-      return {
-        name,
-        data: dataArr,
-      };
-    });
+    const gradientColorObjects: Highcharts.GradientColorObject[] =
+      this.generateGradient(this.colors);
+    const mappedArray: seriesData[] = arr.map(
+      ([name, percent], index): seriesData => ({
+        y: percent,
+        color: gradientColorObjects[index],
+      })
+    );
+
+    mappedArray.push(...placeholder);
+
+    return mappedArray;
+  }
+
+  public setColors(e: Event): void {
+    if (e.target instanceof Highcharts.Chart) {
+      e.target['series'][0]['points'].forEach((hcPoint, index) => {
+        if (!e.target) return;
+
+        console.log(this.colors[index]);
+        hcPoint['dataLabel'].element.firstElementChild.style.fill = this.colors[
+          index
+        ]
+          ? this.colors[index]
+          : '';
+
+        // preventing the color drop of the tspan tag inside the text after Ctrl + Mouse Wheel Up/Down
+        hcPoint[
+          'dataLabel'
+        ].element.firstElementChild.firstElementChild.style.fill = '#000000';
+        hcPoint[
+          'dataLabel'
+        ].element.firstElementChild.firstElementChild.style.stroke = '#000000';
+        // dataLabel.element.firstElementChild.style.fill = hcPoint['color']; // gradient version
+      });
+    }
   }
 
   public setChartOptions(): void {
     this.chartOptions = {
       colors: this.generateGradient(this.colors),
       chart: {
-        type: 'column',
-        inverted: true,
-        polar: true,
         backgroundColor: '#1C242E',
         borderRadius: 10,
-      },
-      credits: {
-        enabled: false,
+        events: {
+          load: (e: Event) => {
+            this.setColors(e);
+          },
+          redraw: (e: Event) => {
+            this.setColors(e);
+          },
+        },
+        inverted: true,
+        polar: true,
+        type: 'column',
       },
       title: {
-        text: 'Boiler Data (%)',
         align: 'left',
         style: {
           fontSize: '12',
           color: '#D9D9D9',
         },
-        y: 15,
+        text: 'Boiler Data (%)',
         x: 8,
+        y: 15,
+      },
+      credits: {
+        enabled: false,
       },
       tooltip: {
         outside: true,
@@ -111,7 +173,7 @@ export class GaugeComponent implements OnInit {
           useHTML: true,
           allowOverlap: true,
           step: 1,
-          y: 3,
+          y: 6,
           x: -25,
           style: {
             fontSize: '13px',
@@ -131,6 +193,7 @@ export class GaugeComponent implements OnInit {
         gridLineColor: '#34363B',
         labels: {
           distance: 12,
+          allowOverlap: true,
           align: 'center',
           style: {
             color: '#404041',
@@ -140,17 +203,19 @@ export class GaugeComponent implements OnInit {
         },
         color: '#424142',
         left: 11,
+        accessibility: {
+          description: 'Percent',
+        },
       },
       plotOptions: {
         column: {
-          stacking: 'normal',
           borderWidth: 0,
           pointPadding: 0,
           groupPadding: 0.3,
           borderRadius: 8,
           tooltip: { valueSuffix: '%' },
           dataLabels: {
-            enabled: true, // shows labels inside the arch
+            enabled: true,
             style: {
               fontWeight: 'bold',
               fontFamily: 'Roboto Mono',
@@ -167,7 +232,12 @@ export class GaugeComponent implements OnInit {
           },
         },
       },
-      series: this.createData(this.data) as Highcharts.SeriesOptionsType[],
+      series: [
+        {
+          name: 'Percent',
+          data: this.createData(this.data),
+        },
+      ] as Highcharts.SeriesOptionsType[],
     };
   }
 
