@@ -1,0 +1,20 @@
+.gauge-wrapper {
+  width: 400px;
+  height: 400px;
+  padding: 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.highcharts-grid.highcharts-xaxis-grid.highcharts-radial-axis-grid
+path:nth-last-of-type(4) {
+  opacity: 0 !important;
+  /*  hides separating arch row inside the circle  */
+}
+
+.highcharts-axis-labels.highcharts-xaxis-labels.highcharts-radial-axis-labels
+span:nth-last-child(4) {
+  overflow: visible !important;
+  /* to show triangle for last label span, "O^2 value" has overflow: hidden */
+}
